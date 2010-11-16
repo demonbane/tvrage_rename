@@ -7,7 +7,7 @@ require 'cgi'
 
 APPVERSION="v0.3.14"
 
-@@opts = {:quiet => false, :dryrun => false, :debug => false, :force => true}
+@@opts = {:quiet => false, :dryrun => false, :debug => false, :force => false}
 filenames = []
 
 def print_help
