@@ -1,0 +1,151 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'open-uri'
+require 'nokogiri'
+require 'cgi'
+
+APPVERSION="v0.3.14"
+
+@@opts = {:quiet => false, :dryrun => false, :debug => false, :force => true}
+filenames = []
+
+def print_help
+  puts "Usage: #{File.basename($0)} [OPTION]... FILENAMES..."
+  puts "Look up TVRage info for FILENAME based on season/episode numbers, and rename"
+  puts "file to show full episode name."
+  puts ""
+  puts "  -q	Run quietly (no output except on errors)"
+  puts "  -d    Dry run. Print what would be done, but don't actually do it."
+  puts "  -D    Debug mode. Implies -d."
+  puts "  -f    Force run. Skip all validations and force rename."
+  puts "  -v    Print version number and exit."
+  puts "  -h	Show this screen"
+  puts ""
+  exit 0
+end
+
+def print_version
+  puts "#{File.basename($0)} #{APPVERSION}"
+  exit 0
+end
+
+begin
+  curarg = ARGV.shift 
+  case curarg
+  when "-q"
+    @@opts[:quiet] = true
+  when "-d"
+    @@opts[:dryrun] = true
+  when "-D"
+    @@opts[:dryrun] = @@opts[:debug] = true
+  when "-f"
+    @@opts[:force] = true
+  when "-h", "-H", "--help", "help"
+    print_help
+  when "-v", "--version"
+    print_version
+  when nil
+    break
+  else
+    filenames.push(curarg)
+  end
+end while ARGV
+  
+abort "No filenames provided, aborting." if filenames.empty?
+
+class Episode
+
+  EPREGEX=/[Ss][0-9]{1,2}[Ee][0-9]{1,2}/
+  ENDPOINT="http://services.tvrage.com/feeds/episodeinfo.php"
+
+  attr_accessor :ep_index, :show_name, :episode_name, :season_number, :episode_number, :file_type
+
+  def initialize(filename)
+    @orig_file_name = filename
+    @file_path = File.dirname(File.expand_path(filename))
+    @file_name = File.basename(File.expand_path(filename))
+    @file_type = @file_name.split(".")[-1]
+    @fullname = File.basename(@file_name, ".#{@file_type}").split(".")
+    abort "no index" unless ep_index
+  end
+
+  def debug
+    STDERR.puts "file_path=#{@file_path}\nfile_name=#{@file_name}\nfile_type=#{@file_type}\nfullname=#{@fullname}"
+    STDERR.puts "tvrage_result=#{tvrage_result}"
+    STDERR.puts "foobarbaz == foobarbaz"
+  end
+
+  def save!
+    validate! unless @@opts[:force]
+    new_file_name = "#{show_name.gsub(" ", ".")}.S#{season_number}E#{episode_number}.#{episode_name.gsub(" ", ".")}.#{file_type}"
+    puts "#{@orig_file_name} -> #{new_file_name}" unless @@opts[:quiet]
+    File.rename(@orig_file_name, "#{@file_path}/#{new_file_name}") unless @@opts[:dryrun]
+    return true
+  end
+
+  def validate!
+    if show_name.upcase != orig_show_name.upcase
+      abortmsg = "Name mismatch ('#{show_name}' -> '#{orig_show_name}')"
+    elsif season_number.to_i != orig_season_number.to_i
+      abortmsg = "Season number mismatch ('#{season_number}' -> '#{orig_season_number}')"
+    elsif episode_number.to_i != orig_episode_number.to_i
+      abortmsg = "Episode number mismatch ('#{episode_number}' -> '#{orig_episode_number}')"
+    end
+    (abort abortmsg if abortmsg) || true
+  end
+
+  def parse_numbers(offset)
+    @numbers ||= ep_index_body.split(/[[:alpha:]]/).compact.reject(&:empty?)
+    @numbers[offset]
+  end
+
+  def orig_season_number
+    @orig_season_number ||= parse_numbers(0)
+  end
+
+  def orig_episode_number
+    @orig_episode_number ||= parse_numbers(1)
+  end
+
+  def season_number
+    @season_number ||= tvrage_result.xpath("//show/episode/number").text.split("x").first
+  end
+
+  def episode_number
+    @episode_number ||= tvrage_result.xpath("//show/episode/number").text.split("x").last
+  end
+
+  def ep_index
+    @ep_index ||= @fullname.find_index {|i| i =~ EPREGEX}
+  end
+
+  def ep_index_body
+    @fullname[@ep_index]
+  end
+
+  def orig_show_name
+    @fullname[0..(ep_index-1)].join(" ")
+  end
+
+  def orig_episode_name
+    @fullname[(ep_index+1)..-1].join(" ")
+  end
+
+  def episode_name
+    tvrage_result.xpath("//show/episode/title").text
+  end
+
+  def show_name
+    tvrage_result.xpath("//show/name").text
+  end
+
+  def tvrage_result
+    @tvrage_result ||= Nokogiri::XML(open("#{ENDPOINT}?show=#{CGI.escape(orig_show_name)}&exact=1&ep=#{CGI.escape(orig_season_number)}x#{CGI.escape(orig_episode_number)}", "User-Agent" => "Ruby/#{RUBY_VERSION}"))
+  end
+
+end
+
+filenames.each do |filename|
+  Episode.new(filename).save!
+end
