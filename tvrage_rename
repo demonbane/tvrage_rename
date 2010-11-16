@@ -5,7 +5,7 @@ require 'open-uri'
 require 'nokogiri'
 require 'cgi'
 
-APPVERSION="v0.4.2"
+APPVERSION="v0.4.3"
 
 @@opts = {:quiet => false, :dryrun => false, :debug => false, :force => false}
 filenames = []
@@ -48,7 +48,11 @@ begin
   when nil
     break
   else
-    filenames += Dir.glob(curarg)
+    if File.exists?(curarg)
+      filenames.push(curarg)
+    else
+      filenames += Dir.glob(curarg)
+    end
   end
 end while ARGV
   
