@@ -5,7 +5,7 @@ require 'open-uri'
 require 'nokogiri'
 require 'cgi'
 
-APPVERSION="v0.4.1"
+APPVERSION="v0.4.2"
 
 @@opts = {:quiet => false, :dryrun => false, :debug => false, :force => false}
 filenames = []
@@ -77,7 +77,7 @@ class Episode
   end
 
   def save!
-    print "Processing #{@orig_file_name}... " unless @@opts[:quiet]
+    print "Processing #{@orig_file_name}... " if @@opts[:debug]
     if validate!
       new_file_name = "#{show_name.gsub(" ", ".")}.S#{season_number}E#{episode_number}.#{episode_name.gsub(" ", ".")}.#{file_type}"
       puts "#{@orig_file_name} -> #{new_file_name}" unless @@opts[:quiet]
