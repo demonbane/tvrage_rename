@@ -5,7 +5,7 @@ require 'open-uri'
 require 'nokogiri'
 require 'cgi'
 
-APPVERSION="v0.4.3"
+APPVERSION="v0.4.4"
 
 @@opts = {:quiet => false, :dryrun => false, :debug => false, :force => false}
 filenames = []
@@ -102,7 +102,7 @@ class Episode
     elsif episode_number.to_i != orig_episode_number.to_i
       @abortmsg = "episode number mismatch ('#{episode_number}' -> '#{orig_episode_number}')"
     end
-    @abortmsg.empty? || @@opts[:force]
+    @abortmsg.nil? || @@opts[:force]
   end
 
   def parse_numbers(offset)
