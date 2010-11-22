@@ -95,7 +95,7 @@ class Episode
 
   def validate!
     @abortmsg = nil
-    if show_name.upcase != orig_show_name.upcase
+    if (show_name.upcase != orig_show_name.upcase) && ! show_name.eql?("American Dad")
       @abortmsg = "name mismatch ('#{show_name}' -> '#{orig_show_name}')"
     elsif season_number.to_i != orig_season_number.to_i
       @abortmsg = "season number mismatch ('#{season_number}' -> '#{orig_season_number}')"
@@ -135,7 +135,9 @@ class Episode
   end
 
   def orig_show_name
-    @fullname[0..(ep_index-1)].join(" ")
+    showname = @fullname[0..(ep_index-1)].join(" ")
+    return "American Dad!" if showname.eql?("American Dad") 
+    showname
   end
 
   def orig_episode_name
@@ -147,7 +149,9 @@ class Episode
   end
 
   def show_name
-    tvrage_result.xpath("//show/name").text
+    showname = tvrage_result.xpath("//show/name").text
+    return "American Dad" if showname.eql?("American Dad!")
+    showname
   end
 
   def tvrage_result
