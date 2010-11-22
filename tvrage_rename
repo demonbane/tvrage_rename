@@ -4,6 +4,7 @@ require 'rubygems'
 require 'open-uri'
 require 'nokogiri'
 require 'cgi'
+require 'timeout'
 
 APPVERSION="v0.4.4"
 
@@ -81,7 +82,7 @@ class Episode
   end
 
   def save!
-    print "Processing #{@orig_file_name}... " if @@opts[:debug]
+    print "\nProcessing #{@orig_file_name}... " if @@opts[:debug]
     if validate!
       new_file_name = "#{show_name.gsub(" ", ".")}.S#{season_number}E#{episode_number}.#{episode_name.gsub(" ", ".")}.#{file_type}"
       puts "#{@orig_file_name} -> #{new_file_name}" unless @@opts[:quiet]
@@ -94,8 +95,10 @@ class Episode
   end
 
   def validate!
-    @abortmsg = nil
-    if (show_name.upcase != orig_show_name.upcase) && ! show_name.eql?("American Dad")
+    puts "\nshow_name = '#{show_name}'\nseason_number = '#{season_number}'\nepisode_number = '#{episode_number}'" if @@opts[:debug]
+    if @abortmsg || tvrage_result
+      # skip rest of checks
+    elsif (show_name.upcase != orig_show_name.upcase) && ! show_name.eql?("American Dad")
       @abortmsg = "name mismatch ('#{show_name}' -> '#{orig_show_name}')"
     elsif season_number.to_i != orig_season_number.to_i
       @abortmsg = "season number mismatch ('#{season_number}' -> '#{orig_season_number}')"
@@ -119,11 +122,15 @@ class Episode
   end
 
   def season_number
-    @season_number ||= tvrage_result.xpath("//show/episode/number").text.split("x").first
+    @season_number ||= tvrage_result.xpath("//show/episode/number").text.split("x").first if tvrage_result
+    return @season_number if @season_number
+    @season_number = "No season"
   end
 
   def episode_number
-    @episode_number ||= tvrage_result.xpath("//show/episode/number").text.split("x").last
+    @episode_number ||= tvrage_result.xpath("//show/episode/number").text.split("x").last if tvrage_result
+    return @episode_number if @episode_number
+    @episode_number = "No episode"
   end
 
   def ep_index
@@ -145,17 +152,26 @@ class Episode
   end
 
   def episode_name
-    tvrage_result.xpath("//show/episode/title").text
+    return tvrage_result.xpath("//show/episode/title").text if tvrage_result
+    "No episode"
   end
 
   def show_name
-    showname = tvrage_result.xpath("//show/name").text
+    showname = tvrage_result.xpath("//show/name").text if tvrage_result
     return "American Dad" if showname.eql?("American Dad!")
-    showname
+    return showname if tvrage_result
+    "No show"
   end
 
   def tvrage_result
-    @tvrage_result ||= Nokogiri::XML(open("#{ENDPOINT}?show=#{CGI.escape(orig_show_name)}&exact=1&ep=#{CGI.escape(orig_season_number)}x#{CGI.escape(orig_episode_number)}", "User-Agent" => "Ruby/#{RUBY_VERSION}"))
+    begin
+      timeout(10) do
+        @tvrage_result ||= Nokogiri::XML(open("#{ENDPOINT}?show=#{CGI.escape(orig_show_name)}&exact=1&ep=#{CGI.escape(orig_season_number)}x#{CGI.escape(orig_episode_number)}", "User-Agent" => "Ruby/#{RUBY_VERSION}"))
+      end
+    rescue Timeout::Error
+      @abortmsg = "Timed out on '#{@orig_file_name}', exiting."
+      @tvrage_result = false
+    end
   end
 
 end
