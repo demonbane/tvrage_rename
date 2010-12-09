@@ -1,5 +1,13 @@
 #!/usr/bin/env ruby
 
+# tvrage_rename - Rename media files using TVRage info
+# (c) 2010 Alex Malinovich (alex@malinovich.name)
+# Released under the GPL v2 or later
+# See www.fsf.org for a full copy of the GPL.
+#
+# If you have a problem with the GPL, cry about it on
+# Twitter. Because I care. Really...
+
 require 'rubygems'
 require 'open-uri'
 require 'nokogiri'
