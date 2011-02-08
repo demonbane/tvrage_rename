@@ -152,7 +152,8 @@ class Episode
 
   def orig_show_name
     showname = @fullname[0..(ep_index-1)].join(" ")
-    return "American Dad!" if showname.eql?("American Dad") 
+    showname = "American Dad!" if showname.eql?("American Dad") 
+    showname = "The Office (US)" if showname.eql?("The Office")
     showname
   end
 
@@ -167,7 +168,8 @@ class Episode
 
   def show_name
     showname = tvrage_result.xpath("//show/name").text if tvrage_result
-    return "American Dad" if showname.eql?("American Dad!")
+    showname = "American Dad" if showname.eql?("American Dad!")
+    showname = "The Office" if showname.eql?("The Office (US)")
     return showname if tvrage_result
     "No show"
   end
