@@ -90,7 +90,7 @@ class Episode
   end
 
   def save!
-    print "\nProcessing #{@orig_file_name}... " if @@opts[:debug]
+    STDERR.print "\nProcessing #{@orig_file_name}... " if @@opts[:debug]
     if validate!
       new_file_name = "#{show_name.gsub(" ", ".")}.S#{season_number}E#{episode_number}.#{episode_name.gsub(" ", ".")}.#{file_type}"
       puts "#{@orig_file_name} -> #{new_file_name}" unless @@opts[:quiet]
@@ -103,7 +103,8 @@ class Episode
   end
 
   def validate!
-    puts "\nshow_name = '#{show_name}'\nseason_number = '#{season_number}'\nepisode_number = '#{episode_number}'" if @@opts[:debug]
+    STDERR.puts "\norig_show_name = '#{orig_show_name}'\nshow_name = '#{show_name}'\nseason_number = '#{season_number}'\nepisode_number = '#{episode_number}'" if @@opts[:debug]
+    debug if @@opts[:debug]
     if @abortmsg || tvrage_result
       # skip rest of checks
     elsif (show_name.upcase != orig_show_name.upcase) && ! show_name.eql?("American Dad")
