@@ -28,6 +28,7 @@ def print_help
   puts "  -d    Dry run. Print what would be done, but don't actually do it."
   puts "  -D    Debug mode. Implies -d."
   puts "  -f    Force run. Skip all validations and force rename."
+  puts "  -c    Clean names. Remove unsafe filename characters from names."
   puts "  -v    Print version number and exit."
   puts "  -h	Show this screen"
   puts ""
@@ -50,6 +51,8 @@ begin
     @@opts[:dryrun] = @@opts[:debug] = true
   when "-f"
     @@opts[:force] = true
+  when "-c"
+    @@opts[:clean] = true
   when "-h", "-H", "--help", "help"
     print_help
   when "-v", "--version"
@@ -71,6 +74,7 @@ class Episode
 
   EPREGEX=/[Ss][0-9]{1,2}[Ee][0-9]{1,2}/
   ENDPOINT="http://services.tvrage.com/feeds/episodeinfo.php"
+  CLEANREGEX=/[\\\/:*?"<>|!]/
 
   attr_accessor :ep_index, :show_name, :episode_name, :season_number, :episode_number, :file_type
 
@@ -107,7 +111,7 @@ class Episode
     debug if @@opts[:debug]
     if @abortmsg || tvrage_result
       # skip rest of checks
-    elsif (show_name.upcase != orig_show_name.upcase) && ! show_name.eql?("American Dad")
+    elsif (show_name.upcase != orig_show_name.upcase)
       @abortmsg = "name mismatch ('#{show_name}' -> '#{orig_show_name}')"
     elsif season_number.to_i != orig_season_number.to_i
       @abortmsg = "season number mismatch ('#{season_number}' -> '#{orig_season_number}')"
@@ -152,23 +156,32 @@ class Episode
 
   def orig_show_name
     showname = @fullname[0..(ep_index-1)].join(" ")
-    showname = "American Dad!" if showname.eql?("American Dad") 
+    showname = clean_string(showname) if @@opts[:clean]
     showname = "The Office (US)" if showname.eql?("The Office")
     showname
   end
 
+  def clean_string(mystr)
+    STDERR.puts "Cleaning \"#{mystr}\" to \"#{mystr.gsub(CLEANREGEX, "")}\"" if @@opts[:debug]
+    mystr.gsub(CLEANREGEX, "")
+  end
+
   def orig_episode_name
-    @fullname[(ep_index+1)..-1].join(" ")
+    epname = @fullname[(ep_index+1)..-1].join(" ")
+    epname = clean_string(epname) if @@opts[:clean]
+    return epname
   end
 
   def episode_name
-    return tvrage_result.xpath("//show/episode/title").text if tvrage_result
-    "No episode"
+    epname = tvrage_result.xpath("//show/episode/title").text if tvrage_result
+    epname = "No episode" unless tvrage_result
+    epname = clean_string(epname) if @@opts[:clean]
+    return epname
   end
 
   def show_name
     showname = tvrage_result.xpath("//show/name").text if tvrage_result
-    showname = "American Dad" if showname.eql?("American Dad!")
+    showname = clean_string(showname) if @@opts[:clean]
     showname = "The Office" if showname.eql?("The Office (US)")
     return showname if tvrage_result
     "No show"
